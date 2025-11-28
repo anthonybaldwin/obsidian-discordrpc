@@ -216,5 +216,59 @@ export class DiscordRPCSettingsTab extends PluginSettingTab {
           );
         })
       );
+
+    containerEl.createEl("h3", { text: "Inactivity Settings" });
+    new Setting(containerEl)
+      .setName("Enable Inactivity Detection")
+      .setDesc("Detect when you are inactive and update Discord status accordingly.")
+      .addToggle((boolean) =>
+        boolean.setValue(plugin.settings.enableInactivityDetection).onChange((value) => {
+          plugin.settings.enableInactivityDetection = value;
+          plugin.saveData(plugin.settings);
+        })
+      );
+
+    new Setting(containerEl)
+      .setName("Inactivity Timeout")
+      .setDesc("Minutes of inactivity before status changes.")
+      .addText((text) =>
+        text
+          .setPlaceholder("5")
+          .setValue(String(plugin.settings.inactivityTimeout))
+          .onChange((value) => {
+            const timeout = parseInt(value);
+            if (!isNaN(timeout) && timeout > 0) {
+              plugin.settings.inactivityTimeout = timeout;
+              plugin.saveData(plugin.settings);
+            }
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Inactivity Behavior")
+      .setDesc("Choose what happens when you become inactive.")
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("clear", "Clear Discord status")
+          .addOption("show-inactive", "Show inactive status")
+          .setValue(plugin.settings.inactivityBehavior)
+          .onChange((value) => {
+            plugin.settings.inactivityBehavior = value as any;
+            plugin.saveData(plugin.settings);
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Custom Inactive Text")
+      .setDesc("Customize the text shown when inactive (only applies to 'Show inactive status').")
+      .addText((text) =>
+        text
+          .setPlaceholder("Inactive")
+          .setValue(plugin.settings.customInactiveText)
+          .onChange((value) => {
+            plugin.settings.customInactiveText = value;
+            plugin.saveData(plugin.settings);
+          })
+      );
   }
 }

@@ -9,10 +9,19 @@ export class DiscordRPCSettings {
   connectOnStart: boolean = true;
   autoHideStatusBar: boolean = true;
   privacyMode: boolean = false;
+  enableInactivityDetection: boolean = false;
+  inactivityTimeout: number = 5; // minutes
+  inactivityBehavior: InactivityBehavior = InactivityBehavior.ClearStatus;
+  customInactiveText: string = "Inactive...";
 }
 
 export enum PluginState {
   connected,
   connecting,
   disconnected,
+}
+
+export enum InactivityBehavior {
+  ClearStatus = "clear",
+  ShowInactive = "show-inactive",
 }

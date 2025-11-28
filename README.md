@@ -54,10 +54,25 @@ If you have any issues or suggestions please create an **issue** or a **pull req
 
 This plugin currently requires Obsidian v0.9.10+
 
+### Building from Source
+
+Using Docker (recommended):
+```bash
+docker run --rm -v "${PWD}:/app" -w /app node:14-alpine sh -c "npm install && npm run build"
+```
+
+Or with npm:
+```bash
+npm install
+npm run build
+```
+
+Built files will be in the `dist/` directory.
+
 ### Install
 
 You can install the plugin via the Community Plugins tab within Obsidian.
 
 #### Manually installing the plugin
 
-- Copy over `main.js`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+- Copy over `main.js`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/obsidian-discordrpc/`.

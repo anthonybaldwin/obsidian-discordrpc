@@ -1,7 +1,7 @@
 import { Client } from "discord-rpc";
 import { Plugin, PluginManifest, TFile } from "obsidian";
 import { Logger } from "./logger";
-import { DiscordRPCSettings, PluginState } from "./settings/settings";
+import { DiscordRPCSettings, PluginState, InactivityBehavior } from "./settings/settings";
 import { DiscordRPCSettingsTab } from "./settings/settings-tab";
 import { StatusBar } from "./status-bar";
 
@@ -14,6 +14,10 @@ export default class ObsidianDiscordRPC extends Plugin {
   public currentFile: TFile;
   public loadedTime: Date;
   public lastSetTime: Date;
+  public lastActivityTime: Date;
+  public inactivityTimer: number;
+  public isInactive: boolean = false;
+  public inactiveStartTime: Date;
 
   setState(state: PluginState) {
     this.state = state;
@@ -35,7 +39,11 @@ export default class ObsidianDiscordRPC extends Plugin {
     let statusBarEl = this.addStatusBarItem();
     this.statusBar = new StatusBar(statusBarEl);
 
-    this.settings = (await this.loadData()) || new DiscordRPCSettings();
+    this.settings = Object.assign(
+      new DiscordRPCSettings(),
+      await this.loadData()
+    );
+    this.lastActivityTime = new Date();
 
     this.registerEvent(
       this.app.workspace.on("file-open", this.onFileOpen, this)
@@ -54,6 +62,13 @@ export default class ObsidianDiscordRPC extends Plugin {
         await this.disconnectDiscord();
       }
     });
+
+    this.registerDomEvent(document, "click", () => this.recordActivity());
+    this.registerDomEvent(document, "keypress", () => this.recordActivity());
+
+    this.registerInterval(window.setInterval(() => {
+      this.checkInactivity();
+    }, 30000));
 
     this.addSettingTab(new DiscordRPCSettingsTab(this.app, this));
 
@@ -109,6 +124,8 @@ export default class ObsidianDiscordRPC extends Plugin {
   async connectDiscord(): Promise<void> {
     this.loadedTime = new Date();
     this.lastSetTime = new Date();
+    this.lastActivityTime = new Date();
+    this.isInactive = false;
 
     this.rpc = new Client({
       transport: "ipc",
@@ -153,6 +170,49 @@ export default class ObsidianDiscordRPC extends Plugin {
       this.settings.autoHideStatusBar
     );
     this.logger.log("Disconnected from Discord", this.settings.showPopups);
+  }
+
+  recordActivity(): void {
+    this.lastActivityTime = new Date();
+    if (this.isInactive && this.settings.enableInactivityDetection) {
+      this.isInactive = false;
+      if (this.currentFile) {
+        this.setActivity(
+          this.app.vault.getName(),
+          this.currentFile.basename,
+          this.currentFile.extension
+        );
+      }
+    }
+  }
+
+  checkInactivity(): void {
+    if (!this.settings.enableInactivityDetection || this.getState() !== PluginState.connected) {
+      return;
+    }
+
+    const now = new Date();
+    const inactiveMs = now.getTime() - this.lastActivityTime.getTime();
+    const timeoutMs = this.settings.inactivityTimeout * 60 * 1000;
+
+    if (inactiveMs >= timeoutMs && !this.isInactive) {
+      this.isInactive = true;
+      this.inactiveStartTime = new Date();
+      this.handleInactivity();
+    }
+  }
+
+  async handleInactivity(): Promise<void> {
+    if (this.settings.inactivityBehavior === InactivityBehavior.ClearStatus) {
+      this.rpc.clearActivity();
+    } else if (this.settings.inactivityBehavior === InactivityBehavior.ShowInactive) {
+      await this.rpc.setActivity({
+        details: this.settings.customInactiveText,
+        startTimestamp: this.inactiveStartTime,
+        largeImageKey: "logo",
+        largeImageText: "Obsidian",
+      });
+    }
   }
 
   async setActivity(
